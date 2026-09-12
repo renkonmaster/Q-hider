@@ -118,7 +118,17 @@
     const messages = new Set()
     for (const header of messageHeaders(root)) {
       const badge = [...header.querySelectorAll('span')]
-        .find(span => normalizedText(span) === 'Bot')
+        .find(span => {
+          if (normalizedText(span) !== 'Bot') return false
+          const parent = span.parentElement
+          if (parent !== header) {
+            return hasClassPrefix(parent, '_badge_') ||
+              (hasClassPrefix(parent, '_body_') && parent.childElementCount === 1)
+          }
+          const previous = span.previousElementSibling
+          const next = span.nextElementSibling
+          return Boolean(normalizedText(previous) && normalizedText(next).startsWith('@'))
+        })
       const message = badge ? findMessage(header) : null
       if (!message) continue
       mark(message, MARKERS.botMessage)

@@ -1,0 +1,31 @@
+html[data-q-hider-hide-stamps='true'] [data-q-hider-stamps],
+html[data-q-hider-hide-viewers='true'] [data-q-hider-viewers],
+html[data-q-hider-hide-author-info='true'] [data-q-hider-author-info],
+html[data-q-hider-hide-bot-messages='true'] [data-q-hider-bot-message],
+html[data-q-hider-hide-typing='true'] [data-q-hider-typing],
+html[data-q-hider-hide-link-previews='true'] [data-q-hider-link-preview],
+html[data-q-hider-hide-attachments='true'] [data-q-hider-attachment],
+html[data-q-hider-hide-custom='true'] [data-q-hider-custom] {
+  display: none !important;
+}
+
+html[data-q-hider-hide-author-info='true'] [data-q-hider-author-layout] {
+  grid-template-columns: 0 minmax(0, 1fr) !important;
+  column-gap: 0 !important;
+}
+
+html[data-q-hider-hide-stamps='true'] [data-q-hider-stamps],
+html[data-q-hider-hide-attachments='true'] [data-q-hider-attachment] {
+  margin: 0 !important;
+}
+
+html[data-q-hider-disable-animations='true'],
+html[data-q-hider-disable-animations='true'] *,
+html[data-q-hider-disable-animations='true'] *::before,
+html[data-q-hider-disable-animations='true'] *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  transition-delay: 0ms !important;
+}

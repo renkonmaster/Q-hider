@@ -58,6 +58,17 @@ test('does not overmatch uploads, ordinary text, sidebars, or generic classes', 
   assert.equal(dom.window.document.querySelector('#upload').hasAttribute(MARKERS.attachment), false)
 })
 
+test('does not mistake a human display name equal to Bot for a grade badge', () => {
+  const dom = new JSDOM(`
+    <article class="_body_hash"><div class="_messageContents_hash">
+      <div class="_messageHeader_hash"><span>Bot</span><span>@human</span><span title="today">12:00</span></div>
+      <div class="markdown-body">hello</div>
+    </div></article>
+  `)
+  scan(dom.window.document, [])
+  assert.equal(dom.window.document.querySelectorAll(`[${MARKERS.botMessage}]`).length, 0)
+})
+
 test('marks expanded and structurally qualified collapsed viewer cards only', () => {
   const dom = new JSDOM(`
     <aside id="sidebar" class="_sidebar_hash">
