@@ -1,0 +1,24 @@
+:root { color-scheme: light dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: light-dark(#192233, #e7edf7); background: light-dark(#f3f6fa, #10161e); }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { width: min(800px, calc(100% - 32px)); margin: 0 auto; padding: 56px 0; }
+h1, h2, p { margin-top: 0; }
+h1 { margin-bottom: 10px; font-size: clamp(2.1rem, 7vw, 3.5rem); }
+h2 { margin-bottom: 0; font-size: 1.1rem; }
+.eyebrow { margin-bottom: 6px; color: #3b91ef; font-size: 0.75rem; font-weight: 750; letter-spacing: 0.13em; text-transform: uppercase; }
+section { margin: 18px 0; padding: 22px; border: 1px solid light-dark(#d9e1ec, #303a47); border-radius: 14px; background: light-dark(#fff, #19212b); }
+.section-heading { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.bulk-actions, .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.switch-row { display: grid; grid-template-columns: 24px 1fr; gap: 12px; align-items: start; padding: 13px 0; border-top: 1px solid light-dark(#e5eaf1, #2d3743); }
+.switch-row:first-child { border-top: 0; }
+.switch-row input { width: 20px; height: 20px; margin: 2px 0 0; }
+.switch-row label { display: grid; gap: 3px; cursor: pointer; }
+.switch-row small, .hint { color: light-dark(#627087, #a7b3c3); font-size: 0.84rem; font-weight: 400; line-height: 1.5; }
+textarea { width: 100%; margin-top: 8px; padding: 11px; resize: vertical; border: 1px solid light-dark(#bec9d8, #4a5767); border-radius: 8px; color: inherit; background: light-dark(#fff, #111821); font: 0.9rem ui-monospace, SFMono-Regular, Consolas, monospace; }
+button { min-height: 40px; padding: 0 15px; border: 0; border-radius: 8px; color: #fff; background: #126ee8; font: inherit; font-weight: 650; cursor: pointer; }
+button.secondary { border: 1px solid light-dark(#bec9d8, #4a5767); color: inherit; background: transparent; }
+button:hover { filter: brightness(1.08); }
+button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid rgb(59 145 239 / 35%); outline-offset: 2px; }
+#status { min-height: 1.5em; color: #238353; font-weight: 650; }
+#status[data-error='true'] { color: #c83e52; }
+@media (max-width: 600px) { main { padding: 28px 0; } section { padding: 17px; } .section-heading { align-items: start; flex-direction: column; } }
