@@ -72,8 +72,8 @@ test('does not mistake a human display name equal to Bot for a grade badge', () 
 test('marks expanded and structurally qualified collapsed viewer cards only', () => {
   const dom = new JSDOM(`
     <aside id="sidebar" class="_sidebar_hash">
-      <section id="collapsed" class="_sidebarItem_hash">
-        <div data-is-large-padding><div class="_userIcon_hash" role="img" style="background-image:url('/api/v3/files/u')"></div><b>+2</b></div>
+      <section id="collapsed" class="_sidebarItem_hash _container_otherhash" data-is-large-padding>
+        <div><div class="_userIcon_hash" role="img" style="background-image:url('/api/v3/files/u')"></div><b>+2</b></div>
       </section>
       <section class="_sidebarItem_hash"><header><h2>トピック</h2></header></section>
       <section id="expanded" class="_container_hash"><header><h2>閲覧者</h2></header><div>Alice</div></section>
@@ -114,4 +114,19 @@ test('isolates runtime-invalid custom selectors', () => {
   const result = scan(dom.window.document, ['.ok', 'div['])
   assert.equal(dom.window.document.querySelector('.ok').hasAttribute(MARKERS.custom), true)
   assert.deepEqual(result.invalidSelectors, ['div['])
+})
+
+test('rescanning removes markers when semantic signals no longer match', () => {
+  const dom = new JSDOM(messageFixture)
+  const { document } = dom.window
+  scan(document, ['.custom-ad'])
+  document.querySelector('#badge').textContent = 'Member'
+  document.querySelector('#stamps').replaceChildren()
+  document.querySelector('.custom-ad').className = 'ordinary'
+
+  scan(document, ['.custom-ad'])
+
+  assert.equal(document.querySelector('#message').hasAttribute(MARKERS.botMessage), false)
+  assert.equal(document.querySelector('#stamps').hasAttribute(MARKERS.stamps), false)
+  assert.equal(document.querySelector('.ordinary').hasAttribute(MARKERS.custom), false)
 })

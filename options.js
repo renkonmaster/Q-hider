@@ -49,7 +49,11 @@
       }
       void storage.save(next).then(saved => {
         writeForm(saved)
-        showStatus('設定を保存しました')
+        if (storage.isUsingFallback?.()) {
+          showStatus('ブラウザーへ保存できず、この画面内だけで反映しました', true)
+        } else {
+          showStatus('設定を保存しました')
+        }
       }).catch(error => {
         showStatus(error instanceof Error ? error.message : '設定を保存できませんでした', true)
       })
@@ -68,6 +72,11 @@
           startPromise = storage.load().then(writeForm).catch(error => {
             writeForm(Core.DEFAULT_SETTINGS)
             showStatus(error instanceof Error ? error.message : '設定を読み込めませんでした', true)
+          })
+          startPromise = startPromise.then(() => {
+            if (storage.isUsingFallback?.()) {
+              showStatus('ブラウザー保存を利用できないため、既定値を表示しています', true)
+            }
           })
         }
         return startPromise

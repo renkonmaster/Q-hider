@@ -44,10 +44,12 @@ function fakeChrome({ stored, rejectGet = false, rejectSet = false } = {}) {
 test('root settings apply and all-off restoration removes every state attribute', () => {
   const dom = new JSDOM()
   const root = dom.window.document.documentElement
-  applyRootSettings(root, { ...Core.DEFAULT_SETTINGS, hideStamps: true, hideBotMessages: true })
-  assert.equal(root.getAttribute(Core.rootAttributeFor('hideStamps')), 'true')
-  assert.equal(root.getAttribute(Core.rootAttributeFor('hideBotMessages')), 'true')
-  assert.equal(root.hasAttribute(Core.rootAttributeFor('hideViewers')), false)
+  const allEnabled = { ...Core.DEFAULT_SETTINGS }
+  for (const key of Core.BOOLEAN_KEYS) allEnabled[key] = true
+  applyRootSettings(root, allEnabled)
+  for (const key of Core.BOOLEAN_KEYS) {
+    assert.equal(root.getAttribute(Core.rootAttributeFor(key)), 'true')
+  }
 
   applyRootSettings(root, Core.DEFAULT_SETTINGS)
   for (const key of Core.BOOLEAN_KEYS) assert.equal(root.hasAttribute(Core.rootAttributeFor(key)), false)
@@ -76,6 +78,7 @@ test('settings storage normalizes, saves, subscribes, and falls back safely', as
   assert.deepEqual(await fallback.load(), Core.DEFAULT_SETTINGS)
   assert.equal((await fallback.save({ hideTyping: true })).hideTyping, true)
   await fallback.load()
+  assert.equal(fallback.isUsingFallback(), true)
   assert.ok(warnings.every(message => message.startsWith('Q-Hider:')))
   assert.equal(new Set(warnings).size, warnings.length)
 })
@@ -136,6 +139,8 @@ test('app batches bounded scans, applies live settings, and stops cleanly', asyn
   assert.equal(scans.length, 1)
   assert.equal(settingsListeners.size, 1)
   assert.equal(FakeObserver.instances.length, 1)
+  assert.equal(FakeObserver.instances[0].observed.options.attributes, true)
+  assert.equal(FakeObserver.instances[0].observed.options.characterData, true)
   assert.equal(dom.window.document.documentElement.hasAttribute(Core.rootAttributeFor('hideStamps')), true)
 
   const added = dom.window.document.createElement('span')
@@ -160,4 +165,47 @@ test('app batches bounded scans, applies live settings, and stops cleanly', asyn
     assert.equal(dom.window.document.documentElement.hasAttribute(Core.rootAttributeFor(key)), false)
   }
   assert.equal(dom.window.document.querySelector('article').isConnected, true)
+})
+
+test('stop during asynchronous startup leaves all root state and observers inactive', async () => {
+  FakeObserver.instances = []
+  const dom = new JSDOM('<main></main>')
+  let resolveLoad
+  let subscriptions = 0
+  const storage = {
+    load: () => new Promise(resolve => { resolveLoad = resolve }),
+    subscribe() { subscriptions += 1; return () => { subscriptions -= 1 } }
+  }
+  const app = createQHiderApp({
+    document: dom.window.document,
+    storage,
+    detector: { scan() { return { invalidSelectors: [] } } },
+    MutationObserver: FakeObserver,
+    logger: { warn() {}, error() {} }
+  })
+
+  const startup = app.start()
+  app.stop()
+  resolveLoad({ ...Core.DEFAULT_SETTINGS, hideStamps: true })
+  await startup
+
+  assert.equal(FakeObserver.instances.length, 0)
+  assert.equal(subscriptions, 0)
+  assert.equal(dom.window.document.documentElement.hasAttribute(Core.rootAttributeFor('hideStamps')), false)
+})
+
+test('changing custom selectors reveals elements matched only by the previous value', () => {
+  const dom = new JSDOM('<div id="old" class="old"></div><div id="new" class="new"></div>')
+  const app = createQHiderApp({
+    document: dom.window.document,
+    storage: { load: async () => Core.DEFAULT_SETTINGS, subscribe: () => () => {} },
+    detector: Detector,
+    logger: { warn() {}, error() {} }
+  })
+
+  app.applySettings({ ...Core.DEFAULT_SETTINGS, customSelectors: '.old' })
+  assert.equal(dom.window.document.querySelector('#old').hasAttribute(Detector.MARKERS.custom), true)
+  app.applySettings({ ...Core.DEFAULT_SETTINGS, customSelectors: '.new' })
+  assert.equal(dom.window.document.querySelector('#old').hasAttribute(Detector.MARKERS.custom), false)
+  assert.equal(dom.window.document.querySelector('#new').hasAttribute(Detector.MARKERS.custom), true)
 })

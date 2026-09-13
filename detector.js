@@ -47,12 +47,20 @@
 
   const mark = (element, marker) => {
     if (!element) return false
-    element.setAttribute(marker, 'true')
+    if (element.getAttribute(marker) !== 'true') element.setAttribute(marker, 'true')
     return true
   }
 
+  const syncMarker = (root, marker, matches) => {
+    for (const element of includingRoot(root, `[${marker}]`)) {
+      if (!matches.has(element)) element.removeAttribute(marker)
+    }
+    for (const element of matches) mark(element, marker)
+    return matches.size
+  }
+
   function markStamps(root) {
-    let count = 0
+    const wrappers = new Set()
     for (const wrapper of includingRoot(root, '[class*="_stampWrapper_"]')) {
       if (!hasClassPrefix(wrapper, '_stampWrapper_') || !findMessage(wrapper)) continue
       const images = [...wrapper.querySelectorAll('img')]
@@ -62,12 +70,9 @@
       })
       const hasReactionLabel = [...wrapper.querySelectorAll('[aria-label]')]
         .some(element => /リアクション|reaction/iu.test(element.getAttribute('aria-label') ?? ''))
-      if (hasStampImage || hasReactionLabel) {
-        mark(wrapper, MARKERS.stamps)
-        count += 1
-      }
+      if (hasStampImage || hasReactionLabel) wrappers.add(wrapper)
     }
-    return count
+    return syncMarker(root, MARKERS.stamps, wrappers)
   }
 
   const messageHeaders = root => includingRoot(root, '[class*="_messageHeader_"]')
@@ -75,18 +80,18 @@
 
   function markAuthorInfo(root) {
     const marked = new Set()
+    const layouts = new Set()
     for (const header of messageHeaders(root)) {
       const message = findMessage(header)
       const layout = header.closest('[class*="_messageContents_"]') ??
         message?.querySelector('[class*="_messageContents_"]')
-      if (layout) mark(layout, MARKERS.authorLayout)
+      if (layout) layouts.add(layout)
 
       for (const icon of message.querySelectorAll(
         '[role="button"][style*="background-image"], [class*="_userIcon_"][style*="background-image"]'
       )) {
         const style = icon.getAttribute('style') ?? ''
         if (!style.includes('/files/')) continue
-        mark(icon, MARKERS.authorInfo)
         marked.add(icon)
       }
 
@@ -103,15 +108,14 @@
       const names = new Set(explicit)
       if (fallbackDisplayName) names.add(fallbackDisplayName)
       for (const span of names) {
-        mark(span, MARKERS.authorInfo)
         marked.add(span)
       }
       for (const span of spans.filter(item => normalizedText(item).startsWith('@'))) {
-        mark(span, MARKERS.authorInfo)
         marked.add(span)
       }
     }
-    return marked.size
+    syncMarker(root, MARKERS.authorLayout, layouts)
+    return syncMarker(root, MARKERS.authorInfo, marked)
   }
 
   function markBotMessages(root) {
@@ -131,10 +135,9 @@
         })
       const message = badge ? findMessage(header) : null
       if (!message) continue
-      mark(message, MARKERS.botMessage)
       messages.add(message)
     }
-    return messages.size
+    return syncMarker(root, MARKERS.botMessage, messages)
   }
 
   const closestViewerCard = heading => {
@@ -150,7 +153,6 @@
       if (normalizedText(heading) !== '閲覧者') continue
       const card = closestViewerCard(heading)
       if (card) {
-        mark(card, MARKERS.viewers)
         cards.add(card)
       }
     }
@@ -159,15 +161,17 @@
       if (!hasClassPrefix(candidate, '_sidebarItem_')) continue
       const parent = candidate.parentElement
       if (!parent || parent.firstElementChild !== candidate || candidate.closest('nav')) continue
-      if (!candidate.querySelector('[data-is-large-padding]')) continue
+      if (
+        !candidate.hasAttribute('data-is-large-padding') &&
+        !candidate.querySelector('[data-is-large-padding]')
+      ) continue
       if (!candidate.querySelector('[class*="_userIcon_"]')) continue
       const hasKnownSibling = [...parent.querySelectorAll('h2')]
         .some(heading => ['トピック', 'メンバー', '参加BOT'].includes(normalizedText(heading)))
       if (!hasKnownSibling) continue
-      mark(candidate, MARKERS.viewers)
       cards.add(candidate)
     }
-    return cards.size
+    return syncMarker(root, MARKERS.viewers, cards)
   }
 
   function markTyping(root) {
@@ -179,13 +183,12 @@
         const typingText = /\b(?:is|are) typing\b|入力中/iu.test(normalizedText(current))
         const composer = current.querySelector('textarea') || current.parentElement?.querySelector('textarea')
         if (typingText && composer) {
-          mark(current, MARKERS.typing)
           containers.add(current)
           break
         }
       }
     }
-    return containers.size
+    return syncMarker(root, MARKERS.typing, containers)
   }
 
   const isExternalHttpLink = anchor => {
@@ -208,10 +211,9 @@
         (anchor.querySelector('[class*="_description_"]') || anchor.querySelector('video, iframe'))
       )
       if (anchor.target !== '_blank' || !/noopener/u.test(rel) || !hasPreviewStructure) continue
-      mark(anchor, MARKERS.linkPreview)
       cards.add(anchor)
     }
-    return cards.size
+    return syncMarker(root, MARKERS.linkPreview, cards)
   }
 
   function markAttachments(root) {
@@ -229,10 +231,9 @@
       const hasFileImage = [...element.querySelectorAll('img[src]')]
         .some(image => (image.getAttribute('src') ?? '').includes('/files/'))
       if (!hasMedia && !hasFileLink && !hasFileImage) continue
-      mark(element, MARKERS.attachment)
       containers.add(element)
     }
-    return containers.size
+    return syncMarker(root, MARKERS.attachment, containers)
   }
 
   function markCustom(root, selectors) {
@@ -241,14 +242,16 @@
     for (const selector of Array.isArray(selectors) ? selectors : []) {
       try {
         for (const element of includingRoot(root, selector)) {
-          mark(element, MARKERS.custom)
           matches.add(element)
         }
       } catch {
         invalidSelectors.push(selector)
       }
     }
-    return { count: matches.size, invalidSelectors }
+    return {
+      count: syncMarker(root, MARKERS.custom, matches),
+      invalidSelectors
+    }
   }
 
   function scan(root, customSelectors = []) {

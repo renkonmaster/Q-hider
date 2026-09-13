@@ -9,8 +9,10 @@
 })(globalThis, (DefaultCore, DefaultDetector) => {
   function createSettingsStorage(chromeApi, logger = console, Core = DefaultCore) {
     let sessionSettings = Core.normalizeSettings(Core.DEFAULT_SETTINGS)
+    let usingFallback = false
     const warned = new Set()
     const warnOnce = (code, message, error) => {
+      usingFallback = true
       if (warned.has(code)) return
       warned.add(code)
       logger.warn(`Q-Hider: ${message}`, error)
@@ -52,7 +54,7 @@
       return () => event.removeListener?.(handler)
     }
 
-    return { load, save, subscribe }
+    return { load, save, subscribe, isUsingFallback: () => usingFallback }
   }
 
   function applyRootSettings(root, value, Core = DefaultCore) {
@@ -78,6 +80,7 @@
       logger,
       Core
     )
+    const customMarker = detector?.MARKERS?.custom ?? 'data-q-hider-custom'
 
     let settings = Core.normalizeSettings(Core.DEFAULT_SETTINGS)
     let selectors = []
@@ -85,6 +88,7 @@
     let unsubscribe = () => {}
     let timer = null
     let started = false
+    let lifecycleVersion = 0
     const pendingRoots = new Set()
     const warnedSelectors = new Set()
 
@@ -111,6 +115,9 @@
 
     function applySettings(value) {
       settings = applyRootSettings(document.documentElement, value, Core)
+      for (const element of document.querySelectorAll(`[${customMarker}]`)) {
+        element.removeAttribute(customMarker)
+      }
       selectors = parseSelectors(settings.customSelectors)
       if (selectors.length > 0) {
         document.documentElement.setAttribute('data-q-hider-hide-custom', 'true')
@@ -152,6 +159,10 @@
 
     const onMutations = mutations => {
       for (const mutation of mutations) {
+        if (
+          mutation.type === 'attributes' &&
+          mutation.attributeName?.startsWith('data-q-hider-')
+        ) continue
         const added = [...(mutation.addedNodes ?? [])]
         if (added.length === 0) addPendingRoot(nearbyRoot(mutation.target))
         for (const node of added) addPendingRoot(nearbyRoot(node))
@@ -163,18 +174,33 @@
     async function start() {
       if (started) return
       started = true
-      settings = Core.normalizeSettings(await storage.load())
+      const version = ++lifecycleVersion
+      let loaded
+      try {
+        loaded = await storage.load()
+      } catch (error) {
+        if (version === lifecycleVersion) started = false
+        throw error
+      }
+      if (!started || version !== lifecycleVersion) return
+      settings = Core.normalizeSettings(loaded)
       applySettings(settings)
       unsubscribe = storage.subscribe(nextSettings => applySettings(nextSettings))
       if (Observer) {
         observer = new Observer(onMutations)
-        observer.observe(document.documentElement, { childList: true, subtree: true })
+        observer.observe(document.documentElement, {
+          attributes: true,
+          characterData: true,
+          childList: true,
+          subtree: true
+        })
       }
     }
 
     function stop() {
       if (!started) return
       started = false
+      lifecycleVersion += 1
       observer?.disconnect()
       observer = null
       unsubscribe()
