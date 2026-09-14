@@ -88,6 +88,30 @@ test('marks expanded and structurally qualified collapsed viewer cards only', ()
   assert.equal(dom.window.document.querySelector('#unrelated').hasAttribute(MARKERS.viewers), false)
 })
 
+test('marks the rest-panel viewer icon strip when the right sidebar is closed', () => {
+  // 右サイドパネルを閉じたとき、チャンネル本体右端に表示される閲覧者アイコン列
+  // Q-Viewer-Hider が対象にしていた _container_ + _rest_ の構造を参考にした検出
+  const dom = new JSDOM(`
+    <div class="_body_hash">
+      <div id="rest-viewers" class="_container_loeje _rest_15cyz">
+        <div class="_userIcon_hash" role="img" style="background-image:url('/api/v3/files/u1')"></div>
+        <div class="_userIcon_hash" role="img" style="background-image:url('/api/v3/files/u2')"></div>
+        <b>+3</b>
+      </div>
+    </div>
+    <nav>
+      <div id="nav-rest" class="_container_navhash _rest_navhash">
+        <div class="_userIcon_hash" role="img"></div>
+      </div>
+    </nav>
+    <div id="unrelated-rest" class="_rest_somehash">plain text</div>
+  `)
+  scan(dom.window.document, [])
+  assert.equal(dom.window.document.querySelector('#rest-viewers').hasAttribute(MARKERS.viewers), true)
+  assert.equal(dom.window.document.querySelector('#nav-rest').hasAttribute(MARKERS.viewers), false)
+  assert.equal(dom.window.document.querySelector('#unrelated-rest').hasAttribute(MARKERS.viewers), false)
+})
+
 test('marks composer typing, OGP cards, and qualified attachments', () => {
   const dom = new JSDOM(`
     <div class="_messageInput_hash">

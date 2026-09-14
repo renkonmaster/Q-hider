@@ -171,6 +171,18 @@
       if (!hasKnownSibling) continue
       cards.add(candidate)
     }
+
+    // 右サイドパネルを閉じたときにチャンネル本体右端へ表示される閲覧者アイコン列を検出する。
+    // Q-Viewer-Hider(_container_ + _rest_ の組み合わせ)を参考に、
+    // "_rest_" プレフィックスを持つコンテナに "_userIcon_" が含まれることを2つのシグナルとして使う。
+    // nav 内のナビゲーションアイコンは除外する。
+    for (const candidate of includingRoot(root, '[class*="_rest_"]')) {
+      if (!hasClassPrefix(candidate, '_rest_')) continue
+      if (candidate.closest('nav')) continue
+      if (!candidate.querySelector('[class*="_userIcon_"]')) continue
+      cards.add(candidate)
+    }
+
     return syncMarker(root, MARKERS.viewers, cards)
   }
 
